@@ -19,7 +19,7 @@ env:
 
 jobs:
   check:
-    name: compile check (${{ env.F6_TAGS }})
+    name: compile check
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
