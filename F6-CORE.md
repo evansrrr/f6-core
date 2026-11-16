@@ -38,18 +38,35 @@ Measured on windows/amd64-v3 with `-trimpath -ldflags "-s -w"`:
 | Build | exe | zip |
 | --- | --- | --- |
 | upstream default (`with_gvisor`) | 58.1 MB | 22.4 MB |
-| this fork | **39.9 MB** | **14.6 MB** |
+| tags only | 39.9 MB | 14.6 MB |
+| this fork | **38.5 MB** | **14.0 MB** |
 
 Per-tag contribution: `no_easytier` -9.7 MB, `no_tailscale` -7.2 MB,
 `no_zerotier` -1.2 MB.
 
-Everything else is kept on purpose: `masque` (the WARP transport FreeV6 runs
-on), every proxy protocol a user might import from a subscription, gvisor TUN
-(`stack: mixed` needs it), DNS with fake-ip, rule-providers, sniffer, and the
+On top of the tags, eight long-tail outbound protocols are removed from the
+tree and from `adapter/parser.go` (-1.4 MB):
+
+| Removed | Why |
+| --- | --- |
+| `snell`, `mieru`, `sudoku`, `shadowquic`, `trusttunnel`, `gost-relay` | niche transports; no Clash subscription in the wild ships them as a node type |
+| `ssh`, `openvpn` | server-side protocols, never used as a proxy node in this scenario |
+
+The mainstream set is untouched: `ss`, `ssr`, `vmess`, `vless`, `trojan`,
+`hysteria`, `hysteria2`, `tuic`, `anytls`, `wireguard`, `socks5`, `http`, plus
+`masque` (the WARP transport FreeV6 runs on). So is gvisor TUN
+(`stack: mixed` needs it), DNS with fake-ip, rule-providers, sniffer and the
 REST controller.
 
-> Trimming the *protocol list* was measured and rejected: dropping 22 of 26
-> outbound types saves only 4.6 MB and breaks legitimate subscriptions.
+> Also measured, not applied: inbound proxy *servers* (`vmess`, `vless`,
+> `trojan`, `ss`, `tuic`, `hysteria2`, `anytls`, `mieru`, ... - 18 listeners).
+> FreeV6 only needs `mixed` + `tun`, so they are dead code, and dropping them
+> saves another **3.3 MB** (38.5 -> 35.2). Left in place for now; see
+> `docs/core-plan.zh-CN.md`.
+
+> Dropping down to just the mainstream protocols was measured too: removing
+> `hysteria` (v1) and `rematch` as well buys another ~1.0 MB and breaks older
+> subscriptions. Not worth it.
 
 ## Platforms
 

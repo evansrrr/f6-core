@@ -47,35 +47,35 @@ jobs:
             goamd64: v3
             asset: mihomo-windows-amd64-v3.exe
             pack: zip
-            max_mb: 42
+            max_mb: 40
           - target: windows-amd64-compatible
             goos: windows
             goarch: amd64
             goamd64: v1
             asset: mihomo-windows-amd64-compatible.exe
             pack: zip
-            max_mb: 42
+            max_mb: 40
           - target: linux-amd64
             goos: linux
             goarch: amd64
             goamd64: v3
             asset: mihomo-linux-amd64
             pack: gz
-            max_mb: 44
+            max_mb: 41
           - target: darwin-arm64
             goos: darwin
             goarch: arm64
             goamd64: ""
             asset: mihomo-darwin-arm64
             pack: gz
-            max_mb: 40
+            max_mb: 37
           - target: android-arm64
             goos: android
             goarch: arm64
             goamd64: ""
             asset: mihomo-android-arm64-v8
             pack: gz
-            max_mb: 46
+            max_mb: 43
     steps:
       - uses: actions/checkout@v4
         with:
