@@ -26,3 +26,5 @@ test/config/cache*
 /output
 .vscode/
 .fleet/
+# f6-core build output
+/build

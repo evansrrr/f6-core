@@ -204,3 +204,53 @@ clean:
 CLANG ?= clang-14
 CFLAGS := -O2 -g -Wall -Werror $(CFLAGS)
 
+# ---------------------------------------------------------------------------
+# f6-core: FreeV6 builds
+#
+# The only difference from upstream is F6_TAGS: easytier / tailscale / zerotier
+# are mesh-VPN outbounds that no proxy subscription uses, so they are compiled
+# out entirely (that also drops the embedded easytier binary, wazero and the
+# tailscale netstack). Measured on windows/amd64-v3: 58.1MB -> 39.9MB (-31%).
+# Everything else -- masque, the full proxy protocol list, gvisor TUN, DNS,
+# rule-providers, sniffer, REST API -- stays untouched.
+# ---------------------------------------------------------------------------
+F6_TAGS      ?= with_gvisor no_easytier no_zerotier no_tailscale
+F6_VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
+F6_BUILDTIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
+F6_BINDIR    ?= build
+F6_LDFLAGS    = -X "github.com/metacubex/mihomo/constant.Version=$(F6_VERSION)" \
+                -X "github.com/metacubex/mihomo/constant.BuildTime=$(F6_BUILDTIME)" \
+                -w -s -buildid=
+F6BUILD       = CGO_ENABLED=0 go build -tags "$(F6_TAGS)" -trimpath -ldflags '$(F6_LDFLAGS)'
+
+f6-windows-amd64:
+	GOARCH=amd64 GOOS=windows GOAMD64=v3 $(F6BUILD) -o $(F6_BINDIR)/mihomo-windows-amd64-v3.exe .
+
+f6-windows-amd64-compatible:
+	GOARCH=amd64 GOOS=windows GOAMD64=v1 $(F6BUILD) -o $(F6_BINDIR)/mihomo-windows-amd64-compatible.exe .
+
+f6-linux-amd64:
+	GOARCH=amd64 GOOS=linux GOAMD64=v3 $(F6BUILD) -o $(F6_BINDIR)/mihomo-linux-amd64 .
+
+f6-linux-amd64-compatible:
+	GOARCH=amd64 GOOS=linux GOAMD64=v1 $(F6BUILD) -o $(F6_BINDIR)/mihomo-linux-amd64-compatible .
+
+f6-darwin-arm64:
+	GOARCH=arm64 GOOS=darwin $(F6BUILD) -o $(F6_BINDIR)/mihomo-darwin-arm64 .
+
+f6-android-arm64:
+	GOARCH=arm64 GOOS=android $(F6BUILD) -o $(F6_BINDIR)/mihomo-android-arm64-v8 .
+
+f6-all: f6-windows-amd64 f6-linux-amd64 f6-darwin-arm64 f6-android-arm64
+
+# Compile every package with the f6 tags (catches tag-induced breakage fast).
+f6-check:
+	go build -tags "$(F6_TAGS)" ./...
+
+f6-test:
+	go test -tags "$(F6_TAGS)" ./adapter/... ./config/... ./rules/...
+
+.PHONY: f6-all f6-check f6-test f6-windows-amd64 f6-windows-amd64-compatible \
+        f6-linux-amd64 f6-linux-amd64-compatible f6-darwin-arm64 f6-android-arm64
+
+
