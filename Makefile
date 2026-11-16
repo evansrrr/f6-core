@@ -207,11 +207,13 @@ CFLAGS := -O2 -g -Wall -Werror $(CFLAGS)
 # ---------------------------------------------------------------------------
 # f6-core: FreeV6 builds
 #
-# The only difference from upstream is F6_TAGS: easytier / tailscale / zerotier
-# are mesh-VPN outbounds that no proxy subscription uses, so they are compiled
-# out entirely (that also drops the embedded easytier binary, wazero and the
-# tailscale netstack). Measured on windows/amd64-v3: 58.1MB -> 39.9MB (-31%).
-# Everything else -- masque, the full proxy protocol list, gvisor TUN, DNS,
+# Two differences from upstream:
+#   * F6_TAGS compiles out easytier / tailscale / zerotier (mesh-VPN outbounds
+#     no proxy subscription uses; that also drops the embedded easytier binary,
+#     wazero and the tailscale netstack).
+#   * eight long-tail outbound protocols are removed from the tree.
+# Measured on windows/amd64-v3: 58.1MB -> 38.5MB (-34%).
+# Everything else -- masque, the mainstream proxy protocols, gvisor TUN, DNS,
 # rule-providers, sniffer, REST API -- stays untouched.
 # ---------------------------------------------------------------------------
 F6_TAGS      ?= with_gvisor no_easytier no_zerotier no_tailscale
@@ -224,22 +226,19 @@ F6_LDFLAGS    = -X "github.com/metacubex/mihomo/constant.Version=$(F6_VERSION)" 
 F6BUILD       = CGO_ENABLED=0 go build -tags "$(F6_TAGS)" -trimpath -ldflags '$(F6_LDFLAGS)'
 
 f6-windows-amd64:
-	GOARCH=amd64 GOOS=windows GOAMD64=v3 $(F6BUILD) -o $(F6_BINDIR)/mihomo-windows-amd64-v3.exe .
-
-f6-windows-amd64-compatible:
-	GOARCH=amd64 GOOS=windows GOAMD64=v1 $(F6BUILD) -o $(F6_BINDIR)/mihomo-windows-amd64-compatible.exe .
+	GOARCH=amd64 GOOS=windows GOAMD64=v3 $(F6BUILD) -o $(F6_BINDIR)/f6-core-windows-amd64-v3.exe .
 
 f6-linux-amd64:
-	GOARCH=amd64 GOOS=linux GOAMD64=v3 $(F6BUILD) -o $(F6_BINDIR)/mihomo-linux-amd64 .
+	GOARCH=amd64 GOOS=linux GOAMD64=v3 $(F6BUILD) -o $(F6_BINDIR)/f6-core-linux-amd64 .
 
 f6-linux-amd64-compatible:
-	GOARCH=amd64 GOOS=linux GOAMD64=v1 $(F6BUILD) -o $(F6_BINDIR)/mihomo-linux-amd64-compatible .
+	GOARCH=amd64 GOOS=linux GOAMD64=v1 $(F6BUILD) -o $(F6_BINDIR)/f6-core-linux-amd64-compatible .
 
 f6-darwin-arm64:
-	GOARCH=arm64 GOOS=darwin $(F6BUILD) -o $(F6_BINDIR)/mihomo-darwin-arm64 .
+	GOARCH=arm64 GOOS=darwin $(F6BUILD) -o $(F6_BINDIR)/f6-core-darwin-arm64 .
 
 f6-android-arm64:
-	GOARCH=arm64 GOOS=android $(F6BUILD) -o $(F6_BINDIR)/mihomo-android-arm64-v8 .
+	GOARCH=arm64 GOOS=android $(F6BUILD) -o $(F6_BINDIR)/f6-core-android-arm64-v8 .
 
 f6-all: f6-windows-amd64 f6-linux-amd64 f6-darwin-arm64 f6-android-arm64
 
@@ -250,7 +249,7 @@ f6-check:
 f6-test:
 	go test -tags "$(F6_TAGS)" ./adapter/... ./config/... ./rules/...
 
-.PHONY: f6-all f6-check f6-test f6-windows-amd64 f6-windows-amd64-compatible \
+.PHONY: f6-all f6-check f6-test f6-windows-amd64 \
         f6-linux-amd64 f6-linux-amd64-compatible f6-darwin-arm64 f6-android-arm64
 
 

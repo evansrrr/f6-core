@@ -45,35 +45,28 @@ jobs:
             goos: windows
             goarch: amd64
             goamd64: v3
-            asset: mihomo-windows-amd64-v3.exe
-            pack: zip
-            max_mb: 40
-          - target: windows-amd64-compatible
-            goos: windows
-            goarch: amd64
-            goamd64: v1
-            asset: mihomo-windows-amd64-compatible.exe
+            asset: f6-core-windows-amd64-v3.exe
             pack: zip
             max_mb: 40
           - target: linux-amd64
             goos: linux
             goarch: amd64
             goamd64: v3
-            asset: mihomo-linux-amd64
+            asset: f6-core-linux-amd64
             pack: gz
             max_mb: 41
           - target: darwin-arm64
             goos: darwin
             goarch: arm64
             goamd64: ""
-            asset: mihomo-darwin-arm64
+            asset: f6-core-darwin-arm64
             pack: gz
             max_mb: 37
           - target: android-arm64
             goos: android
             goarch: arm64
             goamd64: ""
-            asset: mihomo-android-arm64-v8
+            asset: f6-core-android-arm64-v8
             pack: gz
             max_mb: 43
     steps:
@@ -86,6 +79,20 @@ jobs:
           go-version: ${{ env.GO_VERSION }}
           cache: true
 
+      # VERSION keeps the full tag (it ends up in `-v` output), NAME_VERSION
+      # drops the "core-" prefix so artifacts read f6-core-<target>-v0.1.0.zip.
+      - name: Resolve version
+        run: |
+          set -euo pipefail
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            echo "VERSION=${GITHUB_REF_NAME}" >> "$GITHUB_ENV"
+            echo "NAME_VERSION=${GITHUB_REF_NAME#core-}" >> "$GITHUB_ENV"
+          else
+            SHORT="dev-$(git rev-parse --short HEAD)"
+            echo "VERSION=${SHORT}" >> "$GITHUB_ENV"
+            echo "NAME_VERSION=${SHORT}" >> "$GITHUB_ENV"
+          fi
+
       - name: Build
         env:
           GOOS: ${{ matrix.goos }}
@@ -94,7 +101,6 @@ jobs:
         run: |
           set -euo pipefail
           if [ -n "${{ matrix.goamd64 }}" ]; then export GOAMD64="${{ matrix.goamd64 }}"; fi
-          VERSION="${GITHUB_REF_NAME:-dev-$(git rev-parse --short HEAD)}"
           BUILDTIME="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
           mkdir -p build
           go build -tags "$F6_TAGS" -trimpath \
@@ -119,13 +125,12 @@ jobs:
       - name: Pack
         run: |
           set -euo pipefail
-          VERSION="${GITHUB_REF_NAME:-dev-$(git rev-parse --short HEAD)}"
           cd build
           if [ "${{ matrix.pack }}" = "zip" ]; then
-            OUT="$(basename "${{ matrix.asset }}" .exe)-${VERSION}.zip"
+            OUT="$(basename "${{ matrix.asset }}" .exe)-${NAME_VERSION}.zip"
             zip -9 -j "$OUT" "${{ matrix.asset }}"
           else
-            OUT="${{ matrix.asset }}-${VERSION}.gz"
+            OUT="${{ matrix.asset }}-${NAME_VERSION}.gz"
             gzip -9 -c "${{ matrix.asset }}" > "$OUT"
           fi
           rm -f "${{ matrix.asset }}"
@@ -149,6 +154,9 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Resolve version
+        run: echo "NAME_VERSION=${GITHUB_REF_NAME#core-}" >> "$GITHUB_ENV"
+
       - uses: actions/download-artifact@v4
         with:
           path: dist
@@ -158,8 +166,8 @@ jobs:
       - name: Source archive
         run: |
           set -euo pipefail
-          git archive --format=tar.gz --prefix=f6-core-${GITHUB_REF_NAME}/ \
-            -o "dist/f6-core-${GITHUB_REF_NAME}-src.tar.gz" HEAD
+          git archive --format=tar.gz --prefix=f6-core-${NAME_VERSION}/ \
+            -o "dist/f6-core-${NAME_VERSION}-src.tar.gz" HEAD
 
       - name: Checksums
         run: |

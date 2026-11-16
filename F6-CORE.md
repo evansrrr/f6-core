@@ -73,7 +73,6 @@ REST controller.
 | Target | GOOS/GOARCH | Notes |
 | --- | --- | --- |
 | `windows-amd64` | windows/amd64, `GOAMD64=v3` | Primary. Needs AVX2 (Haswell+, 2013+). |
-| `windows-amd64-compatible` | windows/amd64, `GOAMD64=v1` | For pre-AVX2 machines. |
 | `linux-amd64` | linux/amd64, `GOAMD64=v3` | |
 | `darwin-arm64` | darwin/arm64 | Apple Silicon. Intel Macs need a `darwin-amd64` target. |
 | `android-arm64` | android/arm64 | ARMv8-A. Built with `CGO_ENABLED=0`, so it is a plain executable, not a `.so`/AAR. |
@@ -96,7 +95,7 @@ Artifacts land in `build/`. The raw `go build` equivalent:
 ```bash
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 GOAMD64=v3 \
 go build -tags "with_gvisor no_easytier no_zerotier no_tailscale" \
-  -trimpath -ldflags "-s -w -buildid=" -o build/mihomo-windows-amd64-v3.exe .
+  -trimpath -ldflags "-s -w -buildid=" -o build/f6-core-windows-amd64-v3.exe .
 ```
 
 ## Releasing
@@ -108,6 +107,18 @@ archives, a `SHA256SUMS.txt`, and a source tarball of the exact commit.
 ```bash
 git tag core-v1.0.0
 git push origin core-v1.0.0
+```
+
+Artifact names are `f6-core-<target>-<version>`, where `<version>` is the tag
+with the `core-` prefix stripped:
+
+```
+f6-core-windows-amd64-v3-v1.0.0.zip     # contains f6-core-windows-amd64-v3.exe
+f6-core-linux-amd64-v1.0.0.gz
+f6-core-darwin-arm64-v1.0.0.gz
+f6-core-android-arm64-v8-v1.0.0.gz
+f6-core-v1.0.0-src.tar.gz
+SHA256SUMS.txt
 ```
 
 FreeV6 consumes the Windows zip: the archive must contain exactly one `.exe` at
