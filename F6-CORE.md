@@ -148,7 +148,9 @@ mirror family; since `latest` ignores prereleases, it falls back to the tag in
 Clients install a release by: verifying the archive's SHA256 → extracting the
 single `.exe` → running `-v` and comparing the self-reported version → writing
 `runtime/cores/core.json` (the pointer). The previous core is kept as the
-rollback slot and only collected once a newer core passes the health check.
+rollback slot while the new one is unproven; as soon as the client starts the
+proxy successfully with it, the slot is pruned so exactly one core stays on
+disk. A start failure rolls back instead of pruning.
 
 ## License
 
