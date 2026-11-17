@@ -169,6 +169,60 @@ jobs:
           git archive --format=tar.gz --prefix=f6-core-${NAME_VERSION}/ \
             -o "dist/f6-core-${NAME_VERSION}-src.tar.gz" HEAD
 
+      # 内核更新清单：FreeV6 用它判断"有没有新内核"并拿到下载地址与
+      # 校验值。平台键必须与 internal/mihomo.CorePlatformKey() 一致。
+      - name: Core manifest
+        run: |
+          set -euo pipefail
+          cd dist
+          python3 - <<'PY'
+          import glob, hashlib, json, os
+
+          tag = os.environ["GITHUB_REF_NAME"]
+          repo = os.environ["GITHUB_REPOSITORY"]
+          version = tag.removeprefix("core-")
+          base = f"https://github.com/{repo}/releases/download/{tag}"
+
+          # 平台键 -> 归档名前缀（与 matrix 的 asset 对应）
+          platforms = {
+              "windows-amd64-v3": "f6-core-windows-amd64-v3",
+              "linux-amd64-v3": "f6-core-linux-amd64",
+              "darwin-arm64": "f6-core-darwin-arm64",
+              "android-arm64": "f6-core-android-arm64-v8",
+          }
+
+          def digest(path):
+              h = hashlib.sha256()
+              with open(path, "rb") as fh:
+                  for chunk in iter(lambda: fh.read(1 << 20), b""):
+                      h.update(chunk)
+              return h.hexdigest()
+
+          entries = {}
+          for key, prefix in platforms.items():
+              matches = [p for p in glob.glob(f"{prefix}-{version}.*") if not p.endswith(".sha256")]
+              if not matches:
+                  raise SystemExit(f"missing archive for {key} ({prefix}-{version})")
+              archive = matches[0]
+              entries[key] = {
+                  "url": f"{base}/{archive}",
+                  "sha256": digest(archive),
+                  "size": os.path.getsize(archive),
+              }
+
+          lower = tag.lower()
+          manifest = {
+              "version": tag,
+              "channel": "prerelease" if any(x in lower for x in ("-rc", "-beta", "-alpha")) else "stable",
+              "notes": "",
+              "platforms": entries,
+          }
+          with open("core.json", "w", encoding="utf-8") as fh:
+              json.dump(manifest, fh, indent=2, ensure_ascii=False)
+              fh.write("\n")
+          print(json.dumps(manifest, indent=2))
+          PY
+
       - name: Checksums
         run: |
           set -euo pipefail

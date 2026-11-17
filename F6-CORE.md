@@ -121,9 +121,34 @@ f6-core-v1.0.0-src.tar.gz
 SHA256SUMS.txt
 ```
 
-FreeV6 consumes the Windows zip: the archive must contain exactly one `.exe` at
-its root (that is what `extractRuntime` looks for), and the release's
-`SHA256SUMS.txt` is the integrity anchor for `expectedRuntimeSHA256`.
+Every release also publishes **`core.json`**, the update manifest the client
+reads to decide whether a new core is available:
+
+```json
+{
+  "version": "core-v0.1.0-rc.3",
+  "channel": "prerelease",
+  "notes": "",
+  "platforms": {
+    "windows-amd64-v3": {
+      "url": "https://github.com/.../releases/download/core-v0.1.0-rc.3/f6-core-windows-amd64-v3-v0.1.0-rc.3.zip",
+      "sha256": "…",
+      "size": 14762099
+    }
+  }
+}
+```
+
+The platform keys must stay in sync with `CorePlatformKey()` in
+`freev6/internal/mihomo/corestore.go` (`<os>-<arch>`, plus `-v3` for amd64).
+The client fetches `releases/latest/download/core.json` through the gh-proxy
+mirror family; since `latest` ignores prereleases, it falls back to the tag in
+`coreManifestFallbackTag` until a stable core release exists.
+
+Clients install a release by: verifying the archive's SHA256 → extracting the
+single `.exe` → running `-v` and comparing the self-reported version → writing
+`runtime/cores/core.json` (the pointer). The previous core is kept as the
+rollback slot and only collected once a newer core passes the health check.
 
 ## License
 
