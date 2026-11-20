@@ -216,7 +216,7 @@ CFLAGS := -O2 -g -Wall -Werror $(CFLAGS)
 # Everything else -- masque, the mainstream proxy protocols, gvisor TUN, DNS,
 # rule-providers, sniffer, REST API -- stays untouched.
 # ---------------------------------------------------------------------------
-F6_TAGS      ?= with_gvisor no_easytier no_zerotier no_tailscale
+F6_TAGS      ?= no_easytier no_zerotier no_tailscale
 F6_VERSION   ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo dev)
 F6_BUILDTIME ?= $(shell date -u +%Y-%m-%dT%H:%M:%SZ)
 F6_BINDIR    ?= build

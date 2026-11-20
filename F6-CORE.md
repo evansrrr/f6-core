@@ -20,12 +20,13 @@ git checkout core
 git rebase upstream/Alpha   # conflicts should be rare: we only touch build files
 ```
 
-## Why this build is 39.9 MB instead of 58.1 MB
+## Why this build is 32 MB instead of 58 MB
 
-The only difference from a stock build is three build tags:
+`with_gvisor` is **not** set: gVisor only serves the `mixed`/`gvisor` TUN
+stacks and the client renders `stack: system`.
 
 ```
-with_gvisor no_easytier no_zerotier no_tailscale
+no_easytier no_zerotier no_tailscale
 ```
 
 `easytier`, `tailscale` and `zerotier` are mesh-VPN outbounds. No proxy
@@ -35,14 +36,15 @@ tailscale netstack) without touching anything the client relies on.
 
 Measured on windows/amd64-v3 with `-trimpath -ldflags "-s -w"`:
 
-| Build | exe | zip |
+| Build | exe | download |
 | --- | --- | --- |
-| upstream default (`with_gvisor`) | 58.1 MB | 22.4 MB |
-| tags only | 39.9 MB | 14.6 MB |
-| this fork | **38.5 MB** | **14.0 MB** |
+| upstream default (gVisor) | 58.1 MiB | 22.4 MB |
+| tags only (mesh-VPN out) | 39.9 MiB | 14.6 MB |
+| v0.2.0 (inbounds + QUIC outbounds out) | 34.69 MiB | 12.74 MB |
+| v0.3.0 (also drops gVisor) | **31.98 MiB** | **11.84 MB** |
 
 Per-tag contribution: `no_easytier` -9.7 MB, `no_tailscale` -7.2 MB,
-`no_zerotier` -1.2 MB.
+`no_zerotier` -1.2 MB, dropping `with_gvisor` -2.70 MiB.
 
 On top of the tags, eight long-tail outbound protocols are removed from the
 tree and from `adapter/parser.go` (-1.4 MB):
@@ -94,7 +96,7 @@ Artifacts land in `build/`. The raw `go build` equivalent:
 
 ```bash
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 GOAMD64=v3 \
-go build -tags "with_gvisor no_easytier no_zerotier no_tailscale" \
+go build -tags "no_easytier no_zerotier no_tailscale" \
   -trimpath -ldflags "-s -w -buildid=" -o build/f6-core-windows-amd64-v3.exe .
 ```
 

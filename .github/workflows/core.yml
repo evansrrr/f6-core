@@ -14,8 +14,10 @@ permissions:
 env:
   GO_VERSION: "1.26.3"
   # easytier / tailscale / zerotier are mesh-VPN outbounds; no proxy
-  # subscription uses them, so they are compiled out. See F6-CORE.md.
-  F6_TAGS: "with_gvisor no_easytier no_zerotier no_tailscale"
+  # subscription uses them, so they are compiled out. with_gvisor is gone too:
+  # the client renders `stack: system`, which does not need gVisor (-2.70 MiB).
+  # See F6-CORE.md.
+  F6_TAGS: "no_easytier no_zerotier no_tailscale"
 
 jobs:
   check:
@@ -47,28 +49,28 @@ jobs:
             goamd64: v3
             asset: f6-core-windows-amd64-v3.exe
             pack: zip
-            max_mb: 40
+            max_mb: 33
           - target: linux-amd64
             goos: linux
             goarch: amd64
             goamd64: v3
             asset: f6-core-linux-amd64
             pack: gz
-            max_mb: 41
+            max_mb: 34
           - target: darwin-arm64
             goos: darwin
             goarch: arm64
             goamd64: ""
             asset: f6-core-darwin-arm64
             pack: gz
-            max_mb: 37
+            max_mb: 30
           - target: android-arm64
             goos: android
             goarch: arm64
             goamd64: ""
             asset: f6-core-android-arm64-v8
             pack: gz
-            max_mb: 43
+            max_mb: 37
     steps:
       - uses: actions/checkout@v4
         with:
@@ -210,11 +212,22 @@ jobs:
                   "size": os.path.getsize(archive),
               }
 
+          # compat.json 声明这版内核兼容的客户端区间：低于 minApp 的客户端
+          # 渲染的是旧 TUN 栈，装上会静默失效；高于 maxApp 的客户端还没验证过。
+          # 缺字段直接失败，宁可发不出去也不要发一个没有兼容声明的内核。
+          with open(os.path.join("..", "compat.json"), encoding="utf-8") as fh:
+              compat = json.load(fh)
+          for key in ("minApp", "maxApp"):
+              if not compat.get(key):
+                  raise SystemExit(f"compat.json 缺少 {key}")
+
           lower = tag.lower()
           manifest = {
               "version": tag,
               "channel": "prerelease" if any(x in lower for x in ("-rc", "-beta", "-alpha")) else "stable",
               "notes": "",
+              "minApp": compat["minApp"],
+              "maxApp": compat["maxApp"],
               "platforms": entries,
           }
           with open("core.json", "w", encoding="utf-8") as fh:
