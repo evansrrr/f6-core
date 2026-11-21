@@ -55,20 +55,31 @@ tree and from `adapter/parser.go` (-1.4 MB):
 | `ssh`, `openvpn` | server-side protocols, never used as a proxy node in this scenario |
 
 The mainstream set is untouched: `ss`, `ssr`, `vmess`, `vless`, `trojan`,
-`hysteria`, `hysteria2`, `tuic`, `anytls`, `wireguard`, `socks5`, `http`, plus
-`masque` (the WARP transport FreeV6 runs on). So is gvisor TUN
-(`stack: mixed` needs it), DNS with fake-ip, rule-providers, sniffer and the
-REST controller.
+`anytls`, `wireguard`, `socks5`, `http`, plus `masque` (the WARP transport
+FreeV6 runs on), DNS with fake-ip, rule-providers, sniffer and the REST
+controller. `hysteria`, `hysteria2` and `tuic` are gone (nested QUIC cannot ride
+a MASQUE chain, so they were dead options in the node picker).
 
-> Also measured, not applied: inbound proxy *servers* (`vmess`, `vless`,
-> `trojan`, `ss`, `tuic`, `hysteria2`, `anytls`, `mieru`, ... - 18 listeners).
-> FreeV6 only needs `mixed` + `tun`, so they are dead code, and dropping them
-> saves another **3.3 MB** (38.5 -> 35.2). Left in place for now; see
-> `docs/core-plan.zh-CN.md`.
+> Inbound proxy *servers* went away in v0.2.0: 23 `listener/inbound` files
+> deleted, `listener/parse.go` keeps only `socks` / `http` / `mixed` / `tun`
+> (**-3.28 MiB**). The `listeners:` config key therefore fails with
+> `unsupport proxy type: ...`; the client never emits it.
 
-> Dropping down to just the mainstream protocols was measured too: removing
-> `hysteria` (v1) and `rematch` as well buys another ~1.0 MB and breaks older
-> subscriptions. Not worth it.
+## Runtime memory
+
+Two knobs, both opt-in, both read from the environment the client spawns the
+core with:
+
+| Env | Effect | Measured (28-node config, 1000 connections) |
+| --- | --- | --- |
+| `F6_IDLE_GC_SEC=N` | after N seconds without traffic, full GC + `FreeOSMemory` once. Trigger is traffic, not connection count (the masque nodes keep a remote-DNS socket open forever). Cooldown 5 min, skipped below 16 MB of returnable heap. | burst peak 107 MB → **55.6 MB** 30 s after the traffic stops (v0.3.0 stays at 104.6 MB) |
+| `GOGC=60` | tighter heap goal; acts on the peak, not the tail | peak 104.7 → 95.2 MB |
+
+The resident set is not dominated by the Go heap: with the shipped config and no
+traffic, RSS 57 MB while only 13 MB is live heap (the rest is resident code
+pages of a 33 MB binary, goroutine stacks, and heap arenas the scavenger has not
+returned). Per connection it is ~50 KB, of which most is goroutine stacks, so
+concurrency — not the ruleset — is what moves the number.
 
 ## Platforms
 

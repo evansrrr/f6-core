@@ -236,6 +236,8 @@ func main() {
 
 	defer executor.Shutdown()
 
+	startF6MemoryGuard()
+
 	termSign := make(chan os.Signal, 1)
 	hupSign := make(chan os.Signal, 1)
 	signal.Notify(termSign, syscall.SIGINT, syscall.SIGTERM)
